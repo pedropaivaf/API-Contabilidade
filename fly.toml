@@ -1,0 +1,37 @@
+# Fly.io — configuração da aplicação
+# Ajuste `app` após `fly launch` criar o nome real.
+
+app = "api-contabil-dev"
+primary_region = "gru"   # São Paulo — LGPD
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  ENV = "dev"
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[processes]
+  app = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+  worker = "celery -A app.infra.queue worker --loglevel=info"
+
+[checks.health]
+  type = "http"
+  port = 8000
+  method = "GET"
+  path = "/health"
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"

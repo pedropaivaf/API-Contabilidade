@@ -1,0 +1,292 @@
+openapi: 3.1.0
+info:
+  title: API Contábil Universal
+  version: 0.1.0
+  description: |
+    Hub contábil que unifica acesso a fontes oficiais (SERPRO Integra Contador,
+    Focus NFe, LegisWeb, Open Finance) em um contrato único, interoperável com
+    qualquer ERP ou sistema contábil.
+  contact:
+    name: Pedro
+    email: pedromasterchif@gmail.com
+
+servers:
+  - url: https://api.contabil.exemplo.com/v1
+    description: Produção
+  - url: https://sandbox.api.contabil.exemplo.com/v1
+    description: Sandbox
+
+security:
+  - OAuth2: [read, write]
+
+tags:
+  - name: Cadastro
+  - name: Simples Nacional
+  - name: DCTFWeb
+  - name: NFe
+  - name: Tributário
+  - name: Webhooks
+
+paths:
+  /cadastro/cnpj/{cnpj}:
+    get:
+      tags: [Cadastro]
+      summary: Consulta cadastral de CNPJ
+      parameters:
+        - name: cnpj
+          in: path
+          required: true
+          schema: { type: string, pattern: '^\d{14}$' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Empresa' }
+
+  /simples-nacional/das:
+    post:
+      tags: [Simples Nacional]
+      summary: Emitir DAS
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmitirDASRequest' }
+      responses:
+        '202':
+          description: Em processamento (resultado via webhook)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperacaoAssincrona' }
+        '200':
+          description: Emitido sincronamente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DAS' }
+
+  /simples-nacional/pgdas/{cnpj}/{periodo}:
+    get:
+      tags: [Simples Nacional]
+      summary: Consultar PGDAS-D
+      parameters:
+        - { name: cnpj, in: path, required: true, schema: { type: string } }
+        - { name: periodo, in: path, required: true, schema: { type: string, example: '2026-03' } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PGDAS' }
+
+  /dctfweb:
+    post:
+      tags: [DCTFWeb]
+      summary: Gerar e transmitir DCTFWeb
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DCTFWebRequest' }
+      responses:
+        '202': { description: Em processamento }
+
+  /nfe:
+    post:
+      tags: [NFe]
+      summary: Emitir NF-e (modelo 55)
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NFeRequest' }
+      responses:
+        '202': { description: Em processamento }
+
+  /nfe/{chave}:
+    get:
+      tags: [NFe]
+      summary: Consultar NF-e por chave de acesso
+      parameters:
+        - name: chave
+          in: path
+          required: true
+          schema: { type: string, pattern: '^\d{44}$' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NFe' }
+
+  /tributario/aliquotas/iss:
+    get:
+      tags: [Tributário]
+      summary: Alíquota de ISS por município e serviço
+      parameters:
+        - { name: ibge, in: query, required: true, schema: { type: string, example: '3550308' } }
+        - { name: codigoServico, in: query, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Aliquota' }
+
+  /webhooks/subscriptions:
+    post:
+      tags: [Webhooks]
+      summary: Registrar endpoint para receber eventos
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WebhookSubscription' }
+      responses:
+        '201': { description: Criado }
+
+components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.contabil.exemplo.com/oauth/token
+          scopes:
+            read: Leitura
+            write: Escrita
+
+  schemas:
+    Empresa:
+      type: object
+      properties:
+        cnpj: { type: string }
+        razaoSocial: { type: string }
+        nomeFantasia: { type: string }
+        situacao: { type: string, enum: [ATIVA, BAIXADA, SUSPENSA, INAPTA, NULA] }
+        cnaePrincipal: { type: string }
+        regimeTributario: { type: string, enum: [SIMPLES, LUCRO_PRESUMIDO, LUCRO_REAL, MEI] }
+        endereco: { $ref: '#/components/schemas/Endereco' }
+        atualizadoEm: { type: string, format: date-time }
+
+    Endereco:
+      type: object
+      properties:
+        logradouro: { type: string }
+        numero: { type: string }
+        bairro: { type: string }
+        municipio: { type: string }
+        uf: { type: string }
+        cep: { type: string }
+        ibge: { type: string }
+
+    EmitirDASRequest:
+      type: object
+      required: [cnpj, periodo]
+      properties:
+        cnpj: { type: string }
+        periodo: { type: string, example: '2026-03' }
+        dataVencimento: { type: string, format: date }
+
+    DAS:
+      type: object
+      properties:
+        cnpj: { type: string }
+        periodo: { type: string }
+        valor: { type: number }
+        codigoBarras: { type: string }
+        pdfUrl: { type: string, format: uri }
+        emitidoEm: { type: string, format: date-time }
+
+    PGDAS:
+      type: object
+      properties:
+        cnpj: { type: string }
+        periodo: { type: string }
+        receitaBruta: { type: number }
+        valorTotal: { type: number }
+        status: { type: string }
+
+    DCTFWebRequest:
+      type: object
+      required: [cnpj, periodo]
+      properties:
+        cnpj: { type: string }
+        periodo: { type: string }
+        declaracao: { type: object }
+
+    NFeRequest:
+      type: object
+      required: [emitente, destinatario, itens]
+      properties:
+        emitente:
+          type: object
+          properties:
+            cnpj: { type: string }
+        destinatario:
+          type: object
+          properties:
+            documento: { type: string }
+            nome: { type: string }
+        itens:
+          type: array
+          items:
+            type: object
+            properties:
+              descricao: { type: string }
+              quantidade: { type: number }
+              valorUnitario: { type: number }
+              ncm: { type: string }
+              cfop: { type: string }
+
+    NFe:
+      type: object
+      properties:
+        chave: { type: string }
+        numero: { type: string }
+        serie: { type: string }
+        status: { type: string, enum: [AUTORIZADA, CANCELADA, DENEGADA, REJEITADA] }
+        xmlUrl: { type: string, format: uri }
+        danfePdfUrl: { type: string, format: uri }
+
+    Aliquota:
+      type: object
+      properties:
+        ibge: { type: string }
+        codigoServico: { type: string }
+        aliquota: { type: number }
+        vigenciaInicio: { type: string, format: date }
+        fonte: { type: string, example: 'LegisWeb' }
+
+    OperacaoAssincrona:
+      type: object
+      properties:
+        operacaoId: { type: string, format: uuid }
+        status: { type: string, enum: [PENDENTE, PROCESSANDO, CONCLUIDA, FALHA] }
+        webhookEvento: { type: string, example: 'das.emitida' }
+
+    WebhookSubscription:
+      type: object
+      required: [url, eventos]
+      properties:
+        url: { type: string, format: uri }
+        eventos:
+          type: array
+          items:
+            type: string
+            enum: [das.emitida, nfe.autorizada, nfe.cancelada, dctfweb.transmitida, aliquota.alterada]
+        secret: { type: string, description: 'Usado para assinar payloads via HMAC-SHA256' }
