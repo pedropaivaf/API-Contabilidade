@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
 
     # Autenticação de entrada — obrigatório definir em produção via env.
-    jwt_secret: str = ""  # noqa: S105 - valor vem de env em runtime
+    jwt_secret: str = ""  # obrigatório definir via env em produção
     jwt_algorithm: str = "HS256"
     jwt_ttl_seconds: int = 3600
 
