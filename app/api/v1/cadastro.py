@@ -12,5 +12,8 @@ async def consultar_cnpj(cnpj: str) -> dict:
         raise HTTPException(status_code=400, detail="CNPJ inválido")
     try:
         return await serpro.consultar_cnpj(cnpj)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=f"Falha ao consultar SERPRO: {exc}")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Falha ao consultar SERPRO: {exc}",
+        ) from exc

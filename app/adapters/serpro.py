@@ -38,7 +38,10 @@ class SerproAdapter:
         self._token: SerproToken | None = None
         self._ssl_ctx = ssl.create_default_context()
         # Em produção: carregar PFX + senha via KMS; aqui é um stub.
-        # self._ssl_ctx.load_cert_chain(certfile=settings.serpro_cert_pfx_path, password=settings.serpro_cert_password)
+        # self._ssl_ctx.load_cert_chain(
+        #     certfile=settings.serpro_cert_pfx_path,
+        #     password=settings.serpro_cert_password,
+        # )
         self._client = httpx.AsyncClient(
             base_url=settings.serpro_base_url,
             verify=self._ssl_ctx,

@@ -15,7 +15,7 @@ from pydantic import Field
 
 from app.adapters.focus_nfe import focus_nfe
 from app.adapters.serpro import serpro
-from app.mcp.confirmation import issue_confirmation, consume_confirmation
+from app.mcp.confirmation import consume_confirmation, issue_confirmation
 
 try:
     from fastmcp import FastMCP
@@ -38,6 +38,9 @@ mcp = FastMCP(
 # READ TOOLS (sem confirmation)
 # =========================================================================
 
+_CNPJ_DESC = "CNPJ somente dígitos, 14 caracteres"
+
+
 @mcp.tool(
     description=(
         "Consulta dados cadastrais oficiais de um CNPJ na Receita Federal via SERPRO. "
@@ -45,7 +48,7 @@ mcp = FastMCP(
     )
 )
 async def consultar_cnpj(
-    cnpj: Annotated[str, Field(pattern=r"^\d{14}$", description="CNPJ somente dígitos, 14 caracteres")],
+    cnpj: Annotated[str, Field(pattern=r"^\d{14}$", description=_CNPJ_DESC)],
 ) -> dict:
     return await serpro.consultar_cnpj(cnpj)
 
@@ -63,6 +66,9 @@ async def consultar_pgdas(
     return await serpro.consultar_pgdas(cnpj, periodo)
 
 
+_CHAVE_DESC = "Chave de acesso da NFe, 44 dígitos"
+
+
 @mcp.tool(
     description=(
         "Consulta uma NF-e emitida pela chave de acesso (44 dígitos). Retorna status, "
@@ -70,7 +76,7 @@ async def consultar_pgdas(
     )
 )
 async def consultar_nfe(
-    chave: Annotated[str, Field(pattern=r"^\d{44}$", description="Chave de acesso da NFe, 44 dígitos")],
+    chave: Annotated[str, Field(pattern=r"^\d{44}$", description=_CHAVE_DESC)],
 ) -> dict:
     return await focus_nfe.consultar_nfe(chave)
 
@@ -78,6 +84,9 @@ async def consultar_nfe(
 # =========================================================================
 # WRITE TOOLS (confirmation obrigatório)
 # =========================================================================
+
+_CONFIRMATION_HELP = "Token retornado no preview. Omitir na primeira chamada."
+
 
 @mcp.tool(
     description=(
@@ -90,10 +99,9 @@ async def consultar_nfe(
 async def emitir_das(
     cnpj: Annotated[str, Field(pattern=r"^\d{14}$")],
     periodo: Annotated[str, Field(pattern=r"^\d{4}-\d{2}$")],
-    confirmation_token: Annotated[str | None, Field(description="Token retornado no preview. Omitir na primeira chamada.")] = None,
+    confirmation_token: Annotated[str | None, Field(description=_CONFIRMATION_HELP)] = None,
 ) -> dict:
     if confirmation_token is None:
-        # Passo 1: preview sem efeito colateral
         preview = {"cnpj": cnpj, "periodo": periodo, "acao": "EMITIR_DAS"}
         token = issue_confirmation("emitir_das", preview, ttl_seconds=300)
         return {
@@ -106,6 +114,10 @@ async def emitir_das(
     return await serpro.emitir_das(cnpj, periodo)
 
 
+_REFERENCIA_DESC = "Identificador único da emissão (UUID recomendado)"
+_NFE_PAYLOAD_DESC = "Payload NF-e no formato Focus NFe (emitente, destinatário, itens)."
+
+
 @mcp.tool(
     description=(
         "Emite NF-e modelo 55. FLUXO DE DOIS PASSOS obrigatório (ver emitir_das). "
@@ -113,8 +125,8 @@ async def emitir_das(
     )
 )
 async def emitir_nfe(
-    referencia: Annotated[str, Field(description="Identificador único da emissão (UUID recomendado)")],
-    payload: Annotated[dict, Field(description="Payload NF-e no formato Focus NFe (emitente, destinatário, itens).")],
+    referencia: Annotated[str, Field(description=_REFERENCIA_DESC)],
+    payload: Annotated[dict, Field(description=_NFE_PAYLOAD_DESC)],
     confirmation_token: str | None = None,
 ) -> dict:
     if confirmation_token is None:
@@ -137,6 +149,8 @@ if __name__ == "__main__":
     import sys
 
     if "--http" in sys.argv:
-        mcp.run(transport="http", host="0.0.0.0", port=8001)
+        # Bind 0.0.0.0 é intencional: o MCP server roda em container e
+        # precisa aceitar conexões externas ao namespace de rede.
+        mcp.run(transport="http", host="0.0.0.0", port=8001)  # noqa: S104  # nosec B104
     else:
         mcp.run()  # stdio

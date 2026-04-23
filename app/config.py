@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://api:api@db:5432/contabil"
     redis_url: str = "redis://redis:6379/0"
 
-    # Autenticação de entrada (clientes da nossa API)
-    jwt_secret: str = "change-me"
+    # Autenticação de entrada — obrigatório definir em produção via env.
+    jwt_secret: str = ""  # noqa: S105 - valor vem de env em runtime
     jwt_algorithm: str = "HS256"
     jwt_ttl_seconds: int = 3600
 

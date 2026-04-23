@@ -16,7 +16,8 @@ ignore = ["S101"]  # assert em testes é ok
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv"]
-skips = ["B101"]
+# B101 (assert) e B104 (bind 0.0.0.0) aceitos: B104 é intencional no MCP server em container.
+skips = ["B101", "B104"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

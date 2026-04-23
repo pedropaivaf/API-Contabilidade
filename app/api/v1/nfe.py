@@ -1,4 +1,5 @@
 """Endpoints de NF-e (modelo 55) via Focus NFe."""
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Header
@@ -33,7 +34,10 @@ class NFeRequest(BaseModel):
 
 
 @router.post("", status_code=202)
-async def emitir_nfe(payload: NFeRequest, idempotency_key: UUID = Header(alias="Idempotency-Key")) -> dict:
+async def emitir_nfe(
+    payload: NFeRequest,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+) -> dict:
     referencia = str(idempotency_key)
     resultado = await focus_nfe.emitir_nfe(referencia, payload.model_dump())
     return {"referencia": referencia, "resultado": resultado}
