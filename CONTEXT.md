@@ -1,6 +1,8 @@
 # CONTEXT — Briefing para retomar em qualquer máquina
 
+**Nome oficial do projeto:** Ábaco
 **Repositório oficial:** https://github.com/pedropaivaf/API-Contabilidade
+**Estado atual:** ver `PROGRESS.md` (atualizado a cada sessão).
 
 > **Se você é Claude lendo isto em uma nova sessão:** este documento tem o estado completo do projeto. Leia-o primeiro. Depois leia os ADRs na ordem (001 → 002 → 003), SECURITY.md e CAPABILITIES.md. Com isso, consegue continuar de onde paramos.
 
